@@ -38,6 +38,8 @@ import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.os.SystemClock;
 
 import org.jetbrains.annotations.NotNull;
@@ -76,7 +78,7 @@ import static com.welie.blessed.BluetoothBytesParser.bytes2String;
  * This class is a wrapper around the {@link BluetoothDevice} and takes care of operation queueing, some Android bugs, and provides several convenience functions.
  */
 @SuppressWarnings({"SpellCheckingInspection", "unused", "UnusedReturnValue"})
-public class BluetoothPeripheral {
+public class BluetoothPeripheral implements Parcelable {
 
     private static final UUID CCC_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
@@ -119,11 +121,11 @@ public class BluetoothPeripheral {
     private static final String VALUE_BYTE_ARRAY_IS_EMPTY = "value byte array is empty";
     private static final String VALUE_BYTE_ARRAY_IS_TOO_LONG = "value byte array is too long";
 
-    private @NotNull final Context context;
-    private @NotNull final Handler callbackHandler;
-    private @NotNull BluetoothDevice device;
-    private @NotNull final InternalCallback listener;
-    protected @NotNull BluetoothPeripheralCallback peripheralCallback;
+    private Context context;
+    private Handler callbackHandler;
+    private BluetoothDevice device;
+    private InternalCallback listener;
+    protected BluetoothPeripheralCallback peripheralCallback;
     private @NotNull final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
     private @Nullable volatile BluetoothGatt bluetoothGatt;
     private @NotNull String cachedName = "";
@@ -635,6 +637,12 @@ public class BluetoothPeripheral {
         this.listener = Objects.requireNonNull(listener, "no valid listener provided");
         this.peripheralCallback = Objects.requireNonNull(peripheralCallback, NO_VALID_PERIPHERAL_CALLBACK_PROVIDED);
         this.callbackHandler = Objects.requireNonNull(callbackHandler, "no valid callback handler provided");
+    }
+
+    protected BluetoothPeripheral(Parcel in) {
+        device = in.readParcelable(BluetoothDevice.class.getClassLoader());
+//        gimScanRecord = in.createByteArray();
+//        gimRssi = in.readInt();
     }
 
     void setPeripheralCallback(@NotNull final BluetoothPeripheralCallback peripheralCallback) {
@@ -1711,6 +1719,30 @@ public class BluetoothPeripheral {
                 return "UNKNOWN";
         }
     }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeParcelable(device, flags);
+//        dest.writeByteArray(gimScanRecord);
+//        dest.writeInt(gimRssi); // TODO
+    }
+
+    public static final Creator<BluetoothPeripheral> CREATOR = new Creator<BluetoothPeripheral>() {
+        @Override
+        public BluetoothPeripheral createFromParcel(Parcel in) {
+            return new BluetoothPeripheral(in);
+        }
+
+        @Override
+        public BluetoothPeripheral[] newArray(int size) {
+            return new BluetoothPeripheral[size];
+        }
+    };
 
     interface InternalCallback {
 
